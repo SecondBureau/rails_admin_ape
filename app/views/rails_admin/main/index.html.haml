@@ -1,0 +1,99 @@
+:ruby
+  query = params[:query]
+  params = request.params.except(:authenticity_token, :action, :controller, :utf8, :bulk_export)
+  sort = params[:sort]
+  sort_reverse = params[:sort_reverse]
+  properties = @model_config.list.with(:view => self, :object => @abstract_model.model.new).visible_fields
+  # columns paginate
+  @filterable_fields = @model_config.list.fields.select(&:filterable?)
+  @style, @other, properties = get_column_set(properties)
+  @index = 0
+  @ordered_filters = (params[:filters] || @model_config.list.filters).inject({}) { |memo, filter|
+    field_name = filter.is_a?(Array) ? filter.first : filter
+  (filter.is_a?(Array) ? filter.last : { (@index += 1) => { "value" => '' } }) .each do |index, filter_hash|
+      memo[index] = { field_name => filter_hash } unless filter_hash['disabled']
+    end
+    memo
+  }.to_a.sort_by(&:first)
+
+  @ordered_filter_string = @ordered_filters.map do |duplet|
+    filter_index = duplet[0]
+    filter_for_field = duplet[1]
+    filter_name = filter_for_field.keys.first
+    filter_hash = filter_for_field.values.first
+    field = @filterable_fields.find{ |field| field.name == filter_name.to_sym }
+    field_options = case field.type
+    when :enum
+      options_for_select(field.with(:object => @abstract_model.model.new).enum, filter_hash['value']).gsub("\n", '')
+    else
+      ''
+    end
+    "$.filters.append('#{escape_javascript field.label.to_s}', '#{escape_javascript field.name.to_s}', '#{escape_javascript field.type.to_s}', '#{escape_javascript  filter_hash['value'].to_s}', '#{escape_javascript filter_hash['operator'].to_s}', '#{escape_javascript field_options.to_s}', #{filter_hash['value'].is_a?(Array)}, '#{escape_javascript filter_index.to_s}');"
+  end.join if @ordered_filters
+
+%script
+  jQuery(function($) {
+  = @ordered_filter_string
+  });
+
+- can_bulk_action = (authorized?(:export, @abstract_model) || authorized?(:delete, @abstract_model))
+- show_label    = t("admin.index.show_action")
+- delete_label  = t("admin.index.delete_action")
+- edit_label    = t("admin.index.edit_action")
+
+#list
+  %style
+    - @style.each do |key, value|
+      \.grid thead #{key} { width: #{value[:width] }px; }
+  = form_tag(index_path(params.except(*%w[page filters query])), :method => :post, :remote => true) do
+    .row
+      .span12
+        #filters_box
+    .row.clearfix
+      .span3
+        %input{:name => "query", :type => "search", :value => query, :placeholder => t("admin.index.search")}
+      .span3
+        %button.btn.primary{:type => "submit", :'data-disable-with' => t("admin.index.refresh")}= t("admin.index.refresh")
+      %span{:style => 'float:right'}=link_to t("admin.index.export_current_action"), export_path(params.except('page')), :class => 'btn info'
+
+  = form_tag bulk_action_path(:model_name => @abstract_model.to_param), :method => :post, :id => "bulk_form", :class => "form" do
+    = hidden_field_tag :bulk_action
+    %table.zebra-striped
+      %thead
+        %tr
+          %th.first
+            - if can_bulk_action
+              %input.checkbox.toggle{:type => "checkbox"}
+          %th.other.left{ :style => "#{'display: none' if @other.include?("left")}" }...
+          - properties.each do |property|
+            - selected = (sort == property.name.to_s)
+            - if property.sortable
+              - sort_location = index_path params.except('page').merge(:sort => property.name, :sort_reverse => (selected && sort_reverse != 'true') ? 'true' : 'false')
+              - sort_direction = selected ? (sort_reverse == 'true' ? "headerSortUp" : "headerSortDown") : nil
+            %th{:class => "#{property.sortable && "header" || nil} #{property.sortable && sort_direction ? sort_direction : nil} #{property.css_class}", :'data-link' => (property.sortable && sort_location)}= property.label
+          %th.other.right{ :style => "#{'display: none' if @other.include?("right")}" }...
+          %th.last
+      %tbody
+        - @objects.each do |object|
+          %tr
+            %td.action.select
+              - if can_bulk_action
+                = check_box_tag "bulk_ids[]", object.id, false, :id => "bulk_ids_#{object.id}", :class => "checkbox"
+            - other_left = index_path(params.merge(:set => (params[:set].to_i - 1)))
+            %td.other.left{ :style => "#{'display: none' if @other.include?("left")}" }= link_to "...", other_left, :remote => true
+            - properties.map{ |property| property.bind(:object, object) }.each do |property|
+              - value = property.pretty_value
+              %td{:class => "#{property.css_class}", :title => strip_tags(value)}= value
+            - other_right = index_path(params.merge(:set => (params[:set].to_i + 1)))
+            %td.other.right{ :style => "#{'display: none' if @other.include?("right")}" }= link_to "...", other_right, :remote => true
+            %td.last
+              = link_to show_label, show_path(:model_name => params[:model_name], :id => object.id) if authorized? :show, @abstract_model, object
+              = link_to edit_label, edit_path(:model_name => params[:model_name], :id => object.id) if authorized? :edit, @abstract_model, object
+              = link_to delete_label, delete_path(:model_name => params[:model_name], :id => object.id) if authorized? :delete, @abstract_model, object
+    - unless params[:all]
+      - total_count = @objects.total_count
+      = paginate(@objects, :theme => 'twitter-bootstrap', :remote => true)
+      = link_to(t("admin.index.show_all"), index_path(params.merge(:all => true)), :class => "show-all btn clearfix", :remote => true) unless total_count > 100 || total_count <= @objects.size
+      .clearfix.total-count= "#{total_count} #{@model_config.label_plural.downcase}"
+    - else
+      .clearfix.total-count= "#{@objects.size} #{@model_config.label_plural.downcase}"

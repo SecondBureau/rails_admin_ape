@@ -1,0 +1,101 @@
+/*
+  RailsAdmin main CSS
+  Keep it clean, people
+*/
+
+/* Application name */
+.topbar h3 {
+  small {
+    color:red;
+    font-weight:bold;
+  }
+}
+
+/* We want input size to be used, unfixate input width */
+input, textarea {
+  width:auto;
+}
+
+/* ui-autocomplete has z-index 1 and is shown over filtering select button (.add-on) */
+.input-prepend .add-on, .input-append .add-on {
+  z-index:1;
+}
+
+/* sidebar hack (content is slipping beneath height of sidebar. There is a ticket, shouldn't stay long) */
+.sidebar {
+  height:0;
+}
+
+/* Remove when TB-sass is updated >1.3.0 (regression) */
+.container-fluid > .content {
+    margin-left: 240px;
+    float:none;
+    max-width:none;
+    min-width:none;
+}
+
+/* filtering select integration, shouldn't be needed soon with new inline forms (TB 1.4.0?) */
+.input-append {
+  display:inline-block;
+}
+
+/* Modals dimensionning */
+.modal {
+  width:700px;
+  margin:-285px 0 0 -350px;
+  .modal-body {
+    max-height:450px;
+    overflow-y:auto;
+  }
+}
+
+/* Table cells behaviour TODO: homogeinize classes a bit */
+table.zebra-striped {
+  /* All */
+  td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width:150px;
+  }
+
+  /* List */
+  th.other {
+    width:13px;
+  }
+  th.first {
+    width:18px;
+  }
+  th.last {
+    width:60px;
+  }
+
+  /* Dashboard */
+  th.model-name {
+    width:100px;
+  }
+  th.last-used {
+    width:100px;
+  }
+  th.records {
+  }
+  th.controls {
+    width:100px;
+  }
+
+  /* Dashboard => history */
+  th.user {
+    width:100px;
+  }
+
+  /* History */
+  th.created_at {
+    width:160px;
+  }
+  th.username {
+    width:140px;
+  }
+  th.item {
+    width:60px;
+  }
+}
