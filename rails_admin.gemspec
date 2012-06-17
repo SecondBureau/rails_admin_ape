@@ -9,7 +9,7 @@ Gem::Specification.new do |gem|
   gem.add_dependency 'coffee-rails', '~> 3.1'
   gem.add_dependency 'bootstrap-sass', ['~> 1.3', '>= 1.3.1']
   gem.add_dependency 'jquery-rails', '~> 1.0'
-  gem.add_dependency 'kaminari', '~> 0.12.4'
+  gem.add_dependency 'kaminari', '~> 0.13'
   gem.add_development_dependency 'capybara'
   gem.add_development_dependency 'launchy'
   gem.add_development_dependency 'devise'
